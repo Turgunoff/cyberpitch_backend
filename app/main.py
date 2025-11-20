@@ -1,0 +1,22 @@
+# app/main.py
+from fastapi import FastAPI
+from app.core.database import engine, Base
+from app.api import auth 
+
+# Jadvallarni yaratish (Eski jadvalni yangilash uchun)
+# ESLATMA: Haqiqiy loyihada Alembic ishlatiladi, lekin hozir tezkor test uchun:
+Base.metadata.drop_all(bind=engine) # Eskisini o'chiramiz (chunki yangi ustun qo'shdik)
+Base.metadata.create_all(bind=engine) # Yangisini yaratamiz
+
+app = FastAPI(
+    title="CyberPitch API",
+    version="1.0",
+    description="Mobile Football League Backend"
+)
+
+# Routerni ulaymiz
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+
+@app.get("/")
+def read_root():
+    return {"status": "Active", "message": "CyberPitch Server ishlamoqda! 🚀"}
