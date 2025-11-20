@@ -1,34 +1,51 @@
-# app/api/auth.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models.users import User
-from app.schemas.user import UserCreate, UserResponse
-from passlib.context import CryptContext
+from app.models.users import User, Profile
+from app.schemas.auth import EmailLoginRequest, VerifyOTPRequest, TokenResponse
+from app.services.otp_service import generate_and_save_otp, verify_otp_in_redis
+from app.core.config import settings
+from jose import jwt
+from datetime import timedelta
 
 router = APIRouter()
 
-# Parolni shifrlash uchun sozlama
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 1. KOD YUBORISH
+@router.post("/send-code")
+def send_code(request: EmailLoginRequest):
+    generate_and_save_otp(request.email)
+    return {"message": "Tasdiqlash kodi terminalga chiqarildi (Dev Mode)"}
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    # 1. Raqam band emasligini tekshiramiz
-    existing_user = db.query(User).filter(User.phone_number == user.phone_number).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Bu raqam allaqachon ro'yxatdan o'tgan")
+# 2. KODNI TEKSHIRISH VA KIRISH
+@router.post("/verify-code", response_model=TokenResponse)
+def verify_code(request: VerifyOTPRequest, db: Session = Depends(get_db)):
+    # Redisdan tekshirish
+    if not verify_otp_in_redis(request.email, request.code):
+        raise HTTPException(status_code=400, detail="Kod noto'g'ri yoki eskirgan")
 
-    # 2. Parolni shifrlaymiz
-    hashed_password = pwd_context.hash(user.password)
+    # Userni qidirish yoki yaratish
+    user = db.query(User).filter(User.email == request.email).first()
+    is_new_user = False
 
-    # 3. Yangi foydalanuvchi yaratamiz
-    new_user = User(
-        phone_number=user.phone_number,
-        hashed_password=hashed_password
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    return new_user
+    if not user:
+        is_new_user = True
+        user = User(email=request.email)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+        # Profil ham yaratamiz
+        profile = Profile(user_id=user.id)
+        db.add(profile)
+        db.commit()
+
+    # Token yaratish
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode = {"sub": str(user.id), "email": user.email}
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+    return {
+        "access_token": encoded_jwt,
+        "token_type": "bearer",
+        "is_new_user": is_new_user
+    }
