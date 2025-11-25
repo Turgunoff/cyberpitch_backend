@@ -2,6 +2,7 @@
 from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
+from typing import Optional
 
 # Ro'yxatdan o'tish uchun (Client -> Server)
 class UserCreate(BaseModel):

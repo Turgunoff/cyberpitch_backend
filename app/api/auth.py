@@ -23,7 +23,7 @@ def verify_code(request: VerifyOTPRequest, db: Session = Depends(get_db)):
     if not verify_otp_in_redis(request.email, request.code):
         raise HTTPException(status_code=400, detail="Kod noto'g'ri yoki eskirgan")
 
-    # Userni qidirish yoki yaratish
+    # 2. Userni qidirish
     user = db.query(User).filter(User.email == request.email).first()
     is_new_user = False
 
@@ -33,9 +33,24 @@ def verify_code(request: VerifyOTPRequest, db: Session = Depends(get_db)):
         db.add(user)
         db.commit()
         db.refresh(user)
+
+        # --- YANGI LOGIKA: NICKNAME YARATISH ---
+        # Email: "eldor@gmail.com" -> Nickname: "eldor"
+        auto_nickname = request.email.split("@")[0]
         
-        # Profil ham yaratamiz
-        profile = Profile(user_id=user.id)
+        # Agar bunday nick band bo'lsa, orqasiga raqam qo'shamiz (xavfsizlik uchun)
+        if db.query(Profile).filter(Profile.nickname == auto_nickname).first():
+            import random
+            auto_nickname = f"{auto_nickname}_{random.randint(100, 999)}"
+
+        # Profil yaratish (To'ldirilgan holda)
+        profile = Profile(
+            user_id=user.id,
+            nickname=auto_nickname,  # <-- Avtomatik nickname
+            coins=100,
+            gems=0,
+            level=1
+        )
         db.add(profile)
         db.commit()
 
