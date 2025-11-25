@@ -1,16 +1,27 @@
-from pydantic import BaseModel, EmailStr
+# app/schemas/auth.py
+from pydantic import BaseModel, EmailStr, Field
 
-# 1. Login qilish uchun (faqat email so'raymiz)
+
 class EmailLoginRequest(BaseModel):
-    email: EmailStr
+    """Email orqali kod yuborish"""
+    email: EmailStr = Field(..., description="Foydalanuvchi email manzili")
 
-# 2. Kodni tasdiqlash uchun
+
 class VerifyOTPRequest(BaseModel):
-    email: EmailStr
-    code: str
+    """OTP kodni tekshirish"""
+    email: EmailStr = Field(..., description="Email manzil")
+    code: str = Field(..., min_length=6, max_length=6, description="6 xonali tasdiqlash kodi")
 
-# 3. Server javobi (Token)
+
 class TokenResponse(BaseModel):
+    """Token javob"""
     access_token: str
-    token_type: str
-    is_new_user: bool
+    refresh_token: str
+    token_type: str = "bearer"
+    is_new_user: bool = False
+    expires_in: int = Field(..., description="Token muddati (soniyada)")
+
+
+class RefreshTokenRequest(BaseModel):
+    """Token yangilash"""
+    refresh_token: str
