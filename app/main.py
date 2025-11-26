@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
+from app.api import auth, tournaments, users
+
 import logging
 import time
 
@@ -108,10 +110,6 @@ async def generic_exception_handler(request: Request, exc: Exception):
         content={"detail": "Ichki xatolik yuz berdi"}
     )
 
-
-# Routerlarni ulash
-from app.api import auth, tournaments
-
 app.include_router(
     auth.router, 
     prefix="/api/v1/auth", 
@@ -124,6 +122,12 @@ app.include_router(
     tags=["🏆 Tournaments"]
 )
 
+# Router qo'shish (tournaments dan keyin)
+app.include_router(
+    users.router, 
+    prefix="/api/v1/users", 
+    tags=["👤 Users"]
+)
 
 # Health check endpoints
 @app.get("/", tags=["Health"])

@@ -16,13 +16,23 @@ class ProfileBase(BaseModel):
 
 class ProfileUpdate(ProfileBase):
     """Profil yangilash"""
-    pass
+    nickname: Optional[str] = Field(None, min_length=3, max_length=50)
+    pes_id: Optional[str] = Field(None, max_length=50)
+    team_strength: Optional[int] = Field(None, ge=1000, le=5000)
+    region: Optional[str] = Field(None, max_length=100)
+    bio: Optional[str] = Field(None, max_length=500)
 
 
 class ProfileResponse(ProfileBase):
     """Profil javob"""
     id: UUID
     user_id: UUID
+    nickname: Optional[str]
+    pes_id: Optional[str]
+    team_strength: Optional[int]
+    avatar_url: Optional[str]
+    region: Optional[str]
+    bio: Optional[str]
     coins: int
     gems: int
     level: int
@@ -39,13 +49,12 @@ class ProfileResponse(ProfileBase):
 
 
 class UserResponse(BaseModel):
-    """User javob"""
+    """Hozirgi user ma'lumotlari"""
     id: UUID
-    email: EmailStr
+    email: str
     is_active: bool
-    is_admin: bool
     created_at: datetime
-    profile: Optional[ProfileResponse] = None
+    profile: Optional[ProfileResponse]
 
     class Config:
         from_attributes = True
