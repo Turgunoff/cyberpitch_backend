@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import random
-
+import logging  
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token, decode_token
@@ -120,7 +120,11 @@ def verify_code(request: VerifyOTPRequest, db: Session = Depends(get_db)):
         db.add(profile)
         db.commit()
         db.refresh(user)
-
+        
+    # Device info log qilish
+    if request.device_info:
+        logging.info(f"User {user.email} logged in from: {request.device_info}")
+    
     # Tokenlar yaratish
     token_data = {"sub": str(user.id), "email": user.email}
     access_token = create_access_token(token_data)

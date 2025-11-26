@@ -1,5 +1,6 @@
 # app/schemas/auth.py
 from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, Dict, Any
 
 
 class EmailLoginRequest(BaseModel):
@@ -11,6 +12,7 @@ class VerifyOTPRequest(BaseModel):
     """OTP kodni tekshirish"""
     email: EmailStr = Field(..., description="Email manzil")
     code: str = Field(..., min_length=6, max_length=6, description="6 xonali tasdiqlash kodi")
+    device_info: Optional[Dict[str, Any]] = Field(None, description="Qurilma ma'lumotlari")
 
 
 class TokenResponse(BaseModel):
