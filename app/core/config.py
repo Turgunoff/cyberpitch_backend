@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     MAX_AVATAR_SIZE: int = 5 * 1024 * 1024  # 5MB
     AVATAR_QUALITY: int = 85  # JPEG sifati (1-100)
     AVATAR_SIZE: int = 400  # Kvadrat rasm o'lchami (400x400)
-    BASE_URL: str = "http://localhost:8000"  # Production'da o'zgartiring
+    BASE_URL: str = "https://nights.uz"  # Production server URL
 
     class Config:
         env_file = ".env"
