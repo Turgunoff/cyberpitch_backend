@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, func, desc, case
 from typing import Optional, Dict
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 
 from app.core.database import get_db
@@ -849,7 +849,7 @@ def get_all_players(
     - search: nickname bo'yicha qidirish
     - Sort: online bo'lganlar birinchi, keyin vaqt bo'yicha
     """
-    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+    five_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
 
     query = db.query(Profile).filter(
         Profile.user_id != current_user.id,  # O'zini chiqarish
@@ -876,8 +876,14 @@ def get_all_players(
 
     players = []
     for p in profiles:
-        # Online status
-        is_online = p.last_online and p.last_online >= five_minutes_ago
+        # Online status - timezone-aware solishtirish
+        is_online = False
+        if p.last_online:
+            # last_online ni timezone-aware qilish (agar naive bo'lsa)
+            last_online = p.last_online
+            if last_online.tzinfo is None:
+                last_online = last_online.replace(tzinfo=timezone.utc)
+            is_online = last_online >= five_minutes_ago
 
         # Bu o'yinchi bilan aktiv o'yin bormi?
         has_active_match = db.query(Match1v1).filter(
