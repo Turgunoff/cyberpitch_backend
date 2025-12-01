@@ -813,7 +813,8 @@ def get_online_players(
         "players": players,
         "count": len(players),
         "total_online": db.query(func.count(Profile.id)).filter(
-            Profile.last_online >= five_minutes_ago
+            Profile.last_online >= five_minutes_ago,
+            Profile.user_id != current_user.id
         ).scalar() or 0
     }
 
@@ -909,9 +910,10 @@ def get_all_players(
             "last_online": p.last_online.isoformat() if p.last_online else None
         })
 
-    # Total online count
+    # Total online count (o'zini hisoblamasdan)
     total_online = db.query(func.count(Profile.id)).filter(
-        Profile.last_online >= five_minutes_ago
+        Profile.last_online >= five_minutes_ago,
+        Profile.user_id != current_user.id
     ).scalar() or 0
 
     return {
