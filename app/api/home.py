@@ -61,7 +61,7 @@ def get_home_dashboard(
 
     # Aktiv/kelayotgan turnirlar
     active_tournaments = db.query(Tournament).filter(
-        Tournament.status.in_([TournamentStatus.REGISTRATION, TournamentStatus.IN_PROGRESS])
+        Tournament.status.in_([TournamentStatus.REGISTRATION, TournamentStatus.LIVE])
     ).order_by(desc(Tournament.is_featured), desc(Tournament.created_at)).limit(5).all()
 
     tournaments_data = []
