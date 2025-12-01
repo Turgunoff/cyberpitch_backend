@@ -8,15 +8,24 @@ from .tournament import (
     TournamentListResponse,
     TournamentDetailResponse,
     ParticipantResponse,
-    MatchResponse,
-    MatchResultSubmit,
+    MatchResponse as TournamentMatchResponse,
+    MatchResultSubmit as TournamentMatchResultSubmit,
     BracketResponse
+)
+from .match import (
+    MatchCreate,
+    MatchResultSubmit,
+    MatchResponse,
+    MatchHistoryItem,
+    MatchHistoryResponse,
+    UserMatchStats,
+    UserStatsResponse
 )
 
 __all__ = [
     # Auth
     "EmailLoginRequest",
-    "VerifyOTPRequest", 
+    "VerifyOTPRequest",
     "TokenResponse",
     "RefreshTokenRequest",
     # User
@@ -30,7 +39,15 @@ __all__ = [
     "TournamentListResponse",
     "TournamentDetailResponse",
     "ParticipantResponse",
-    "MatchResponse",
+    "TournamentMatchResponse",
+    "TournamentMatchResultSubmit",
+    "BracketResponse",
+    # 1v1 Match
+    "MatchCreate",
     "MatchResultSubmit",
-    "BracketResponse"
+    "MatchResponse",
+    "MatchHistoryItem",
+    "MatchHistoryResponse",
+    "UserMatchStats",
+    "UserStatsResponse",
 ]
