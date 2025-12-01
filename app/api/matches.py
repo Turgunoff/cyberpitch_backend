@@ -2,19 +2,24 @@
 """
 1vs1 o'yinlar API
 O'yin yaratish, qabul qilish, natija yuborish va tarix
+Matchmaking queue va online players
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, func, desc
-from typing import Optional
+from typing import Optional, Dict
 from uuid import UUID
 from datetime import datetime, timedelta
+import random
 
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.users import User, Profile
 from app.models.matches import Match1v1, GameMode, GameStatus
+
+# In-memory matchmaking queue (production'da Redis ishlatiladi)
+matchmaking_queue: Dict[str, dict] = {}  # user_id -> {user_data, joined_at, mode}
 from app.schemas.match import (
     MatchCreate,
     MatchResultSubmit,
@@ -631,3 +636,200 @@ def get_active_matches(
         })
 
     return {"matches": result, "count": len(result)}
+
+
+# ══════════════════════════════════════════════════════════
+# MATCHMAKING QUEUE
+# ══════════════════════════════════════════════════════════
+
+@router.post("/queue/join", summary="Matchmaking queuega qo'shilish")
+def join_matchmaking_queue(
+    mode: GameMode = GameMode.RANKED,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Avtomatik raqib topish uchun queuega qo'shilish
+    """
+    user_id = str(current_user.id)
+    profile = current_user.profile
+
+    # Allaqachon queueda bo'lsa
+    if user_id in matchmaking_queue:
+        return {
+            "status": "already_in_queue",
+            "message": "Siz allaqachon queuedasiz",
+            "position": list(matchmaking_queue.keys()).index(user_id) + 1
+        }
+
+    # User ma'lumotlarini saqlash
+    matchmaking_queue[user_id] = {
+        "user_id": user_id,
+        "nickname": profile.nickname if profile else "Player",
+        "avatar_url": profile.avatar_url if profile else None,
+        "level": profile.level if profile else 1,
+        "rating": 1000,  # TODO: ELO rating
+        "wins": profile.wins if profile else 0,
+        "total_matches": profile.total_matches if profile else 0,
+        "mode": mode.value,
+        "joined_at": datetime.utcnow().isoformat()
+    }
+
+    # Raqib qidirish
+    match_found = None
+    for other_id, other_data in list(matchmaking_queue.items()):
+        if other_id != user_id and other_data["mode"] == mode.value:
+            # Match topildi!
+            match_found = other_data
+
+            # Match yaratish
+            match = Match1v1(
+                player1_id=UUID(other_id),
+                player2_id=current_user.id,
+                mode=mode,
+                status=GameStatus.ACCEPTED  # Avtomatik qabul
+            )
+            db.add(match)
+            db.commit()
+            db.refresh(match)
+
+            # Ikkalasini ham queuedan olib tashlash
+            del matchmaking_queue[other_id]
+            del matchmaking_queue[user_id]
+
+            return {
+                "status": "match_found",
+                "message": "Raqib topildi!",
+                "match_id": str(match.id),
+                "opponent": {
+                    "id": other_id,
+                    "nickname": other_data["nickname"],
+                    "avatar_url": other_data["avatar_url"],
+                    "level": other_data["level"],
+                    "wins": other_data["wins"],
+                    "total_matches": other_data["total_matches"]
+                }
+            }
+
+    # Raqib topilmadi, queueda kutish
+    position = len(matchmaking_queue)
+    return {
+        "status": "searching",
+        "message": "Raqib qidirilmoqda...",
+        "position": position,
+        "queue_size": len(matchmaking_queue)
+    }
+
+
+@router.delete("/queue/leave", summary="Queuedan chiqish")
+def leave_matchmaking_queue(
+    current_user: User = Depends(get_current_user)
+):
+    """Matchmaking queuedan chiqish"""
+    user_id = str(current_user.id)
+
+    if user_id in matchmaking_queue:
+        del matchmaking_queue[user_id]
+        return {"status": "left", "message": "Queuedan chiqdingiz"}
+
+    return {"status": "not_in_queue", "message": "Siz queueda emassiz"}
+
+
+@router.get("/queue/status", summary="Queue holati")
+def get_queue_status(
+    current_user: User = Depends(get_current_user)
+):
+    """Queuedagi holatni tekshirish"""
+    user_id = str(current_user.id)
+
+    if user_id not in matchmaking_queue:
+        return {
+            "status": "not_in_queue",
+            "in_queue": False
+        }
+
+    position = list(matchmaking_queue.keys()).index(user_id) + 1
+    user_data = matchmaking_queue[user_id]
+
+    return {
+        "status": "searching",
+        "in_queue": True,
+        "position": position,
+        "queue_size": len(matchmaking_queue),
+        "mode": user_data["mode"],
+        "joined_at": user_data["joined_at"]
+    }
+
+
+# ══════════════════════════════════════════════════════════
+# ONLINE PLAYERS
+# ══════════════════════════════════════════════════════════
+
+@router.get("/online-players", summary="Online o'yinchilar")
+def get_online_players(
+    limit: int = Query(20, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Hozir online bo'lgan o'yinchilar ro'yxati
+    Challenge yuborish uchun
+    """
+    # Oxirgi 5 daqiqada aktiv bo'lganlar
+    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+
+    online_profiles = db.query(Profile).filter(
+        Profile.last_online >= five_minutes_ago,
+        Profile.user_id != current_user.id,  # O'zini chiqarish
+        Profile.nickname.isnot(None)
+    ).order_by(desc(Profile.last_online)).limit(limit).all()
+
+    players = []
+    for p in online_profiles:
+        # Bu o'yinchi bilan aktiv o'yin bormi?
+        has_active_match = db.query(Match1v1).filter(
+            Match1v1.status.in_([GameStatus.PENDING, GameStatus.ACCEPTED, GameStatus.PLAYING]),
+            or_(
+                and_(Match1v1.player1_id == current_user.id, Match1v1.player2_id == p.user_id),
+                and_(Match1v1.player1_id == p.user_id, Match1v1.player2_id == current_user.id)
+            )
+        ).first() is not None
+
+        win_rate = round((p.wins / p.total_matches * 100), 1) if p.total_matches > 0 else 0
+
+        players.append({
+            "id": str(p.user_id),
+            "nickname": p.nickname,
+            "avatar_url": p.avatar_url,
+            "level": p.level,
+            "wins": p.wins,
+            "total_matches": p.total_matches,
+            "win_rate": win_rate,
+            "has_active_match": has_active_match,
+            "last_online": p.last_online.isoformat() if p.last_online else None
+        })
+
+    return {
+        "players": players,
+        "count": len(players),
+        "total_online": db.query(func.count(Profile.id)).filter(
+            Profile.last_online >= five_minutes_ago
+        ).scalar() or 0
+    }
+
+
+@router.post("/update-online", summary="Online statusni yangilash")
+def update_online_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Foydalanuvchining online statusini yangilash
+    Har 30 sekundda chaqiriladi
+    """
+    profile = current_user.profile
+    if profile:
+        profile.last_online = datetime.utcnow()
+        db.commit()
+
+    return {"status": "updated"}
