@@ -7,7 +7,7 @@ Matchmaking queue va online players
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, and_, func, desc
+from sqlalchemy import or_, and_, func, desc, case
 from typing import Optional, Dict
 from uuid import UUID
 from datetime import datetime, timedelta
@@ -866,7 +866,7 @@ def get_all_players(
 
     # Sort: online birinchi, keyin last_online vaqti bo'yicha
     # Case expression: online = 0, offline = 1
-    online_case = func.case(
+    online_case = case(
         (Profile.last_online >= five_minutes_ago, 0),
         else_=1
     )
