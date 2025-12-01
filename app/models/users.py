@@ -119,3 +119,25 @@ class Profile(Base):
 
     def __repr__(self):
         return f"<Profile {self.nickname}>"
+
+
+class Friendship(Base):
+    """Do'stlik tizimi"""
+    __tablename__ = "friendships"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # So'rov yuboruvchi
+    requester_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # So'rov qabul qiluvchi
+    addressee_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Status: pending, accepted, declined, blocked
+    status = Column(String(20), default="pending", nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    requester = relationship("User", foreign_keys=[requester_id])
+    addressee = relationship("User", foreign_keys=[addressee_id])
