@@ -833,3 +833,84 @@ def update_online_status(
         db.commit()
 
     return {"status": "updated"}
+
+
+@router.get("/players", summary="Barcha o'yinchilar")
+def get_all_players(
+    filter: str = Query("all", pattern="^(all|online)$"),
+    search: Optional[str] = Query(None, min_length=2, max_length=50),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Barcha o'yinchilar ro'yxati
+    - filter: 'all' - hammasi, 'online' - faqat onlinelar
+    - search: nickname bo'yicha qidirish
+    - Sort: online bo'lganlar birinchi, keyin vaqt bo'yicha
+    """
+    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+
+    query = db.query(Profile).filter(
+        Profile.user_id != current_user.id,  # O'zini chiqarish
+        Profile.nickname.isnot(None)
+    )
+
+    # Filter: faqat online
+    if filter == "online":
+        query = query.filter(Profile.last_online >= five_minutes_ago)
+
+    # Search: nickname bo'yicha
+    if search:
+        query = query.filter(Profile.nickname.ilike(f"%{search}%"))
+
+    # Sort: online birinchi, keyin last_online vaqti bo'yicha
+    # Case expression: online = 0, offline = 1
+    online_case = func.case(
+        (Profile.last_online >= five_minutes_ago, 0),
+        else_=1
+    )
+    query = query.order_by(online_case, desc(Profile.last_online))
+
+    profiles = query.limit(limit).all()
+
+    players = []
+    for p in profiles:
+        # Online status
+        is_online = p.last_online and p.last_online >= five_minutes_ago
+
+        # Bu o'yinchi bilan aktiv o'yin bormi?
+        has_active_match = db.query(Match1v1).filter(
+            Match1v1.status.in_([GameStatus.PENDING, GameStatus.ACCEPTED, GameStatus.PLAYING]),
+            or_(
+                and_(Match1v1.player1_id == current_user.id, Match1v1.player2_id == p.user_id),
+                and_(Match1v1.player1_id == p.user_id, Match1v1.player2_id == current_user.id)
+            )
+        ).first() is not None
+
+        win_rate = round((p.wins / p.total_matches * 100), 1) if p.total_matches > 0 else 0
+
+        players.append({
+            "id": str(p.user_id),
+            "nickname": p.nickname,
+            "avatar_url": p.avatar_url,
+            "level": p.level,
+            "wins": p.wins,
+            "total_matches": p.total_matches,
+            "win_rate": win_rate,
+            "has_active_match": has_active_match,
+            "is_online": is_online,
+            "last_online": p.last_online.isoformat() if p.last_online else None
+        })
+
+    # Total online count
+    total_online = db.query(func.count(Profile.id)).filter(
+        Profile.last_online >= five_minutes_ago
+    ).scalar() or 0
+
+    return {
+        "players": players,
+        "count": len(players),
+        "total_online": total_online,
+        "filter": filter
+    }
