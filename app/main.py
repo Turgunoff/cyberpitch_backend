@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
-from app.api import auth, tournaments, users, upload, matches
+from app.api import auth, tournaments, users, upload, matches, home
 
 import logging
 import time
@@ -139,6 +139,12 @@ app.include_router(
     matches.router,
     prefix="/api/v1/matches",
     tags=["🎮 Matches"]
+)
+
+app.include_router(
+    home.router,
+    prefix="/api/v1/home",
+    tags=["🏠 Home"]
 )
 
 # Health check endpoints
