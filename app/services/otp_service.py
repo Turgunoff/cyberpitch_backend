@@ -4,6 +4,7 @@ import random
 import logging
 from typing import Optional, Tuple
 from app.core.config import settings
+from app.services.email_service import send_otp_email
 
 logger = logging.getLogger(__name__)
 
@@ -114,17 +115,17 @@ def generate_and_save_otp(email: str) -> str:
             "expires": time.time() + settings.OTP_EXPIRATION_SECONDS
         }
     
-    # Development mode - terminalga chiqarish
-    if settings.DEBUG:
+    # Email orqali yuborish (Resend)
+    email_sent = send_otp_email(email, code)
+
+    # Agar email yuborilmasa va DEBUG mode bo'lsa, terminalga chiqarish
+    if not email_sent and settings.DEBUG:
         print(f"\n{'='*50}")
-        print(f"📨 OTP KOD YUBORILDI (DEV MODE)")
+        print(f"📨 OTP KOD (DEV MODE - EMAIL YUBORILMADI)")
         print(f"📧 EMAIL: {email}")
         print(f"🔑 KOD:   {code}")
         print(f"⏰ MUDDAT: {settings.OTP_EXPIRATION_SECONDS} soniya")
         print(f"{'='*50}\n")
-    
-    # TODO: Production'da haqiqiy email yuborish
-    # send_email(email, "Tasdiqlash kodi", f"Sizning kodingiz: {code}")
     
     logger.info(f"OTP yuborildi: {email}")
     return code

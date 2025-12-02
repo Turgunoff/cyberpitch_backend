@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     APP_NAME: str = "CyberPitch"
     DEBUG: bool = False
 
+    # Email (Resend)
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = "noreply@cyberpitch.uz"
+
     # Rasmlar
     UPLOAD_DIR: str = "uploads"
     AVATAR_DIR: str = "avatars"
