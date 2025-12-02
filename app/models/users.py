@@ -90,6 +90,11 @@ class Profile(Base):
     is_public = Column(Boolean, default=True)         # Profil ochiqmi
     show_stats = Column(Boolean, default=True)        # Statistika ko'rsatilsinmi
     last_online = Column(DateTime(timezone=True), nullable=True)
+
+    # ══════════════════════════════════════════════════════════
+    # PUSH NOTIFICATIONS
+    # ══════════════════════════════════════════════════════════
+    onesignal_player_id = Column(String(100), nullable=True)  # OneSignal Player ID
     
     # ══════════════════════════════════════════════════════════
     # TIMESTAMPS

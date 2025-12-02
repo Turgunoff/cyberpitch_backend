@@ -1,5 +1,5 @@
 # app/api/users.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func, desc
 from pydantic import BaseModel, Field
@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.users import User, Profile, Friendship
 from app.models.matches import Match1v1, GameStatus
+from app.services.notification_service import NotificationService
 
 router = APIRouter()
 
@@ -26,13 +27,13 @@ class ProfileUpdateRequest(BaseModel):
     region: Optional[str] = Field(None, max_length=100)
     bio: Optional[str] = Field(None, max_length=500)
     language: Optional[str] = Field(None, max_length=10)
-    
+
     # Ijtimoiy tarmoqlar
     telegram: Optional[str] = Field(None, max_length=50)
     instagram: Optional[str] = Field(None, max_length=50)
     youtube: Optional[str] = Field(None, max_length=100)
     discord: Optional[str] = Field(None, max_length=50)
-    
+
     # O'yin
     pes_id: Optional[str] = Field(None, max_length=50)
     team_strength: Optional[int] = Field(None, ge=1000, le=5000)
@@ -40,6 +41,9 @@ class ProfileUpdateRequest(BaseModel):
     play_style: Optional[str] = Field(None, max_length=20)
     preferred_formation: Optional[str] = Field(None, max_length=10)
     available_hours: Optional[str] = Field(None, max_length=50)
+
+    # Push Notifications
+    onesignal_player_id: Optional[str] = Field(None, max_length=100)
 
 
 class PhoneVerifyRequest(BaseModel):
@@ -474,8 +478,9 @@ def _get_recent_matches(db: Session, user_id: UUID, limit: int = 5) -> list:
 # ══════════════════════════════════════════════════════════
 
 @router.post("/friends/request/{user_id}", summary="Do'stlik so'rovi yuborish")
-def send_friend_request(
+async def send_friend_request(
     user_id: str,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -533,12 +538,24 @@ def send_friend_request(
     db.add(friendship)
     db.commit()
 
+    # Push Notification yuborish (background da)
+    target_profile = db.query(Profile).filter(Profile.user_id == UUID(user_id)).first()
+    if target_profile and target_profile.onesignal_player_id:
+        requester_name = current_user.profile.nickname if current_user.profile else "O'yinchi"
+        background_tasks.add_task(
+            NotificationService.send_friend_request_notification,
+            target_profile.onesignal_player_id,
+            requester_name,
+            str(current_user.id)
+        )
+
     return {"message": "Do'stlik so'rovi yuborildi", "status": "pending"}
 
 
 @router.post("/friends/accept/{user_id}", summary="Do'stlik so'rovini qabul qilish")
-def accept_friend_request(
+async def accept_friend_request(
     user_id: str,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -557,6 +574,17 @@ def accept_friend_request(
 
     friendship.status = "accepted"
     db.commit()
+
+    # Push Notification yuborish (so'rov yuborgan odamga)
+    requester_profile = db.query(Profile).filter(Profile.user_id == UUID(user_id)).first()
+    if requester_profile and requester_profile.onesignal_player_id:
+        friend_name = current_user.profile.nickname if current_user.profile else "O'yinchi"
+        background_tasks.add_task(
+            NotificationService.send_friend_accepted_notification,
+            requester_profile.onesignal_player_id,
+            friend_name,
+            str(current_user.id)
+        )
 
     return {"message": "Do'stlik tasdiqlandi", "status": "accepted"}
 

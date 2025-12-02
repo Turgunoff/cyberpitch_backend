@@ -5,7 +5,7 @@ O'yin yaratish, qabul qilish, natija yuborish va tarix
 Matchmaking queue va online players
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, func, desc, case
 from typing import Optional, Dict
@@ -17,6 +17,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.users import User, Profile
 from app.models.matches import Match1v1, GameMode, GameStatus
+from app.services.notification_service import NotificationService
 
 # In-memory matchmaking queue (production'da Redis ishlatiladi)
 matchmaking_queue: Dict[str, dict] = {}  # user_id -> {user_data, joined_at, mode}
@@ -314,8 +315,9 @@ def get_user_stats(
 # ══════════════════════════════════════════════════════════
 
 @router.post("/challenge", status_code=status.HTTP_201_CREATED, summary="Challenge yuborish")
-def create_challenge(
+async def create_challenge(
     data: MatchCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -373,6 +375,19 @@ def create_challenge(
     db.add(match)
     db.commit()
     db.refresh(match)
+
+    # Push Notification yuborish (background da)
+    opponent_profile = db.query(Profile).filter(Profile.user_id == data.opponent_id).first()
+    if opponent_profile and opponent_profile.onesignal_player_id:
+        challenger_name = current_user.profile.nickname if current_user.profile else "O'yinchi"
+        background_tasks.add_task(
+            NotificationService.send_challenge_notification,
+            opponent_profile.onesignal_player_id,
+            challenger_name,
+            str(match.id),
+            data.mode.value,
+            data.bet_amount
+        )
 
     return {
         "message": "Challenge yuborildi",

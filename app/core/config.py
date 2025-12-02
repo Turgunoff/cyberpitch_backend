@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = "noreply@cyberpitch.uz"
 
+    # Push Notifications (OneSignal)
+    ONESIGNAL_APP_ID: str = "5affee5f-1d19-460f-af51-af806e9b1c64"
+    ONESIGNAL_REST_API_KEY: str = ""
+
     # Rasmlar
     UPLOAD_DIR: str = "uploads"
     AVATAR_DIR: str = "avatars"
