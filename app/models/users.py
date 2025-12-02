@@ -35,6 +35,7 @@ class Profile(Base):
     # ══════════════════════════════════════════════════════════
     # SHAXSIY MA'LUMOTLAR
     # ══════════════════════════════════════════════════════════
+    email = Column(String(255), nullable=True, index=True)  # User jadvalidagi email nusxasi
     nickname = Column(String(50), unique=True, nullable=True, index=True)
     full_name = Column(String(100), nullable=True)
     phone = Column(String(20), nullable=True)

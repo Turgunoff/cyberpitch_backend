@@ -112,6 +112,7 @@ def verify_code(request: VerifyOTPRequest, db: Session = Depends(get_db)):
         # Profil yaratish
         profile = Profile(
             user_id=user.id,
+            email=request.email,  # Email saqlash
             nickname=nickname,
             coins=100,
             gems=0,
