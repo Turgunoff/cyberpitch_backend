@@ -482,6 +482,43 @@ def decline_challenge(
     return {"message": "Challenge rad etildi"}
 
 
+@router.post("/{match_id}/cancel", summary="Challenge bekor qilish")
+def cancel_challenge(
+    match_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    O'zim yuborgan challenge'ni bekor qilish
+    Faqat PENDING statusdagi challenge'ni bekor qilish mumkin
+    """
+    match = db.query(Match1v1).filter(Match1v1.id == match_id).first()
+
+    if not match:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="O'yin topilmadi"
+        )
+
+    # Faqat player1 (yuboruvchi) bekor qila oladi
+    if match.player1_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Siz bu challenge'ni bekor qila olmaysiz"
+        )
+
+    if match.status != GameStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bu challenge bekor qilib bo'lmaydi. Faqat kutilayotgan takliflarni bekor qilish mumkin."
+        )
+
+    match.status = GameStatus.CANCELLED
+    db.commit()
+
+    return {"message": "Challenge bekor qilindi"}
+
+
 @router.post("/{match_id}/result", summary="Natija yuborish")
 def submit_result(
     match_id: UUID,
