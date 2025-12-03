@@ -1,8 +1,13 @@
 # app/core/config.py
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from functools import lru_cache
+from typing import List
 import secrets
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -49,9 +54,42 @@ class Settings(BaseSettings):
     AVATAR_SIZE: int = 400  # Kvadrat rasm o'lchami (400x400)
     BASE_URL: str = "https://nights.uz"  # Production server URL
 
+    # CORS
+    CORS_ORIGINS: List[str] = ["*"]
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+
+    def validate_production(self) -> List[str]:
+        """Production uchun muhim sozlamalarni tekshirish"""
+        warnings = []
+        errors = []
+
+        # Critical checks
+        if not self.DEBUG:
+            if self.SECRET_KEY == secrets.token_urlsafe(32) or len(self.SECRET_KEY) < 32:
+                errors.append("SECRET_KEY production uchun o'rnatilmagan!")
+
+            if not self.RESEND_API_KEY:
+                warnings.append("RESEND_API_KEY o'rnatilmagan - email yuborilmaydi")
+
+            if not self.ONESIGNAL_REST_API_KEY:
+                warnings.append("ONESIGNAL_REST_API_KEY o'rnatilmagan - push notification ishlamaydi")
+
+            if "localhost" in self.DATABASE_URL:
+                warnings.append("DATABASE_URL localhost ishlatmoqda")
+
+        # Log warnings
+        for warning in warnings:
+            logger.warning(f"⚠️ CONFIG: {warning}")
+
+        # Raise errors
+        if errors:
+            for error in errors:
+                logger.error(f"❌ CONFIG: {error}")
+
+        return errors
 
 
 @lru_cache()
@@ -61,3 +99,10 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+def validate_settings():
+    """Startup da settings tekshirish"""
+    errors = settings.validate_production()
+    if errors and not settings.DEBUG:
+        raise ValueError(f"Configuration errors: {', '.join(errors)}")

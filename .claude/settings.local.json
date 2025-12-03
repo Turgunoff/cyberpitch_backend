@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(python3 -m py_compile:*)",
-      "Bash(dart analyze:*)"
+      "Bash(dart analyze:*)",
+      "Bash(flutter pub get:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(py -m py_compile:*)",
+      "Bash(cmd /c \"cd /d c:\\Users\\Developer\\Projects\\cyberpitch_backend && py -m py_compile app/main.py app/api/websocket.py app/core/config.py\")"
     ],
     "deny": [],
     "ask": []

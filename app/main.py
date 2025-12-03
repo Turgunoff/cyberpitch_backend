@@ -4,12 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
-from app.api import auth, tournaments, users, upload, matches, home
+from app.api import auth, tournaments, users, upload, matches, home, websocket
 
 import logging
 import time
 
-from app.core.config import settings
+from app.core.config import settings, validate_settings
 from app.core.database import init_db, check_db_connection
 
 # Logging sozlash
@@ -25,7 +25,16 @@ async def lifespan(app: FastAPI):
     """Startup va shutdown events"""
     # Startup
     logger.info("🚀 CyberPitch server ishga tushmoqda...")
-    
+
+    # Configuration validation
+    try:
+        validate_settings()
+        logger.info("✅ Configuration validated")
+    except ValueError as e:
+        logger.error(f"❌ Configuration error: {e}")
+        if not settings.DEBUG:
+            raise
+
     # Database connection check
     if check_db_connection():
         logger.info("✅ Database ulandi")
@@ -34,9 +43,12 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Jadvallar tayyor")
     else:
         logger.error("❌ Database ulanmadi!")
-    
+
+    logger.info(f"📊 Debug mode: {settings.DEBUG}")
+    logger.info(f"🌐 Base URL: {settings.BASE_URL}")
+
     yield
-    
+
     # Shutdown
     logger.info("👋 Server yopilmoqda...")
 
@@ -145,6 +157,12 @@ app.include_router(
     home.router,
     prefix="/api/v1/home",
     tags=["🏠 Home"]
+)
+
+app.include_router(
+    websocket.router,
+    prefix="/api/v1",
+    tags=["🔌 WebSocket"]
 )
 
 # Health check endpoints
