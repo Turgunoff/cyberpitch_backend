@@ -952,13 +952,20 @@ def get_all_players(
                 last_online = last_online.replace(tzinfo=timezone.utc)
             is_online = last_online >= five_minutes_ago
 
-        # Bu o'yinchi bilan aktiv o'yin bormi?
-        has_active_match = db.query(Match1v1).filter(
-            Match1v1.status.in_([GameStatus.PENDING, GameStatus.ACCEPTED, GameStatus.PLAYING]),
+        # Men bu o'yinchiga PENDING taklif yuborganmanmi?
+        has_pending_challenge = db.query(Match1v1).filter(
+            Match1v1.player1_id == current_user.id,
+            Match1v1.player2_id == p.user_id,
+            Match1v1.status == GameStatus.PENDING
+        ).first() is not None
+
+        # O'yinchi band mi? (ACCEPTED yoki PLAYING statusda)
+        is_busy = db.query(Match1v1).filter(
             or_(
-                and_(Match1v1.player1_id == current_user.id, Match1v1.player2_id == p.user_id),
-                and_(Match1v1.player1_id == p.user_id, Match1v1.player2_id == current_user.id)
-            )
+                Match1v1.player1_id == p.user_id,
+                Match1v1.player2_id == p.user_id
+            ),
+            Match1v1.status.in_([GameStatus.ACCEPTED, GameStatus.PLAYING])
         ).first() is not None
 
         win_rate = round((p.wins / p.total_matches * 100), 1) if p.total_matches > 0 else 0
@@ -971,7 +978,8 @@ def get_all_players(
             "wins": p.wins,
             "total_matches": p.total_matches,
             "win_rate": win_rate,
-            "has_active_match": has_active_match,
+            "has_pending_challenge": has_pending_challenge,
+            "is_busy": is_busy,
             "is_online": is_online,
             "last_online": p.last_online.isoformat() if p.last_online else None
         })
