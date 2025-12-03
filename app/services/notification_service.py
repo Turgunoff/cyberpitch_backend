@@ -47,9 +47,26 @@ class NotificationService:
             "include_player_ids": [player_id],
             "headings": {"en": title},
             "contents": {"en": message},
-            # iOS uchun muhim sozlamalar
+
+            # ═══════════════════════════════════════
+            # ANDROID - Telegram style notification
+            # ═══════════════════════════════════════
+            "android_channel_id": "high_priority_channel",
+            "priority": 10,  # Maksimal prioritet
+            "android_visibility": 1,  # Public - lock screen da ko'rinadi
+            "android_accent_color": "FF4CAF50",  # Yashil rang
+
+            # ═══════════════════════════════════════
+            # iOS - Time Sensitive notification
+            # ═══════════════════════════════════════
             "ios_interruption_level": "time_sensitive",
-            "priority": 10,  # Yuqori prioritet
+            "ios_relevance_score": 1.0,  # Maksimal relevance
+
+            # ═══════════════════════════════════════
+            # UMUMIY
+            # ═══════════════════════════════════════
+            "ttl": 86400,  # 24 soat
+            "isAnyWeb": False,
         }
 
         # Custom sound va Android channel
@@ -57,7 +74,6 @@ class NotificationService:
             payload["ios_sound"] = sound
             sound_name = sound.replace(".wav", "").replace(".mp3", "")
             payload["android_sound"] = sound_name
-            # Android notification channel
             payload["android_channel_id"] = f"{sound_name}_channel"
 
         if data:
@@ -70,11 +86,20 @@ class NotificationService:
                     json=payload,
                     headers=cls._get_headers(),
                 )
-                response.raise_for_status()
-                logger.info(f"Notification yuborildi: {player_id[:20]}...")
-                return True
+                result = response.json()
+                logger.info(f"🔔 OneSignal Response: {result}")
+
+                if response.status_code == 200:
+                    if result.get("recipients", 0) > 0:
+                        logger.info(f"✅ Notification yuborildi: {player_id[:20]}... -> {result.get('recipients')} ta qabul qiluvchi")
+                    else:
+                        logger.warning(f"⚠️ Notification yuborildi, lekin 0 ta qabul qiluvchi! Player ID: {player_id[:30]}")
+                    return True
+                else:
+                    logger.error(f"❌ OneSignal xato: {result}")
+                    return False
         except Exception as e:
-            logger.error(f"Notification yuborishda xato: {e}")
+            logger.error(f"❌ Notification yuborishda xato: {e}")
             return False
 
     @classmethod
