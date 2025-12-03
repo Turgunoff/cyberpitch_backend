@@ -13,7 +13,7 @@ from app.core.database import get_db
 logger = logging.getLogger(__name__)
 from app.core.security import get_current_user
 from app.models.users import User, Profile, Friendship
-from app.models.matches import Match1v1, GameStatus
+from app.models.matches import Match1v1, GameStatus, GameMode
 from app.services.notification_service import (
     send_friend_request_notification_sync,
     send_friend_accepted_notification_sync,
@@ -305,6 +305,14 @@ def get_player_profile(
     # Oxirgi o'yinlar (5 ta)
     recent_matches = _get_recent_matches(db, UUID(user_id), limit=5)
 
+    # Pending challenge bormi (men bu userga challenge yuborganmanmi)
+    has_pending_challenge = db.query(Match1v1).filter(
+        Match1v1.player1_id == current_user.id,
+        Match1v1.player2_id == UUID(user_id),
+        Match1v1.mode == GameMode.CHALLENGE,
+        Match1v1.status.in_([GameStatus.PENDING, GameStatus.ACCEPTED])
+    ).first() is not None
+
     # Profil public bo'lmasa
     if not profile.is_public and friendship_status != "friends":
         return {
@@ -360,6 +368,9 @@ def get_player_profile(
 
         # Do'stlik
         "friendship_status": friendship_status,
+
+        # Challenge holati
+        "has_pending_challenge": has_pending_challenge,
 
         # Head-to-head
         "head_to_head": h2h_stats,
