@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
-from app.api import auth, tournaments, users, upload, matches, home, websocket
+from app.api import auth, tournaments, users, upload, matches, home, websocket, chat
 
 import logging
 import time
@@ -163,6 +163,12 @@ app.include_router(
     websocket.router,
     prefix="/api/v1",
     tags=["🔌 WebSocket"]
+)
+
+app.include_router(
+    chat.router,
+    prefix="/api/v1/chat",
+    tags=["💬 Chat"]
 )
 
 # Health check endpoints
