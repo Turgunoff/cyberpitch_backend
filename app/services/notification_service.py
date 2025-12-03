@@ -51,7 +51,6 @@ class NotificationService:
             # ═══════════════════════════════════════
             # ANDROID - Telegram style notification
             # ═══════════════════════════════════════
-            "android_channel_id": "high_priority_channel",
             "priority": 10,  # Maksimal prioritet
             "android_visibility": 1,  # Public - lock screen da ko'rinadi
             "android_accent_color": "FF4CAF50",  # Yashil rang
@@ -66,15 +65,13 @@ class NotificationService:
             # UMUMIY
             # ═══════════════════════════════════════
             "ttl": 86400,  # 24 soat
-            "isAnyWeb": False,
         }
 
-        # Custom sound va Android channel
+        # Custom sound (android_channel_id siz)
         if sound:
             payload["ios_sound"] = sound
             sound_name = sound.replace(".wav", "").replace(".mp3", "")
             payload["android_sound"] = sound_name
-            payload["android_channel_id"] = f"{sound_name}_channel"
 
         if data:
             payload["data"] = data
