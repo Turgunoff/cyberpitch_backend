@@ -53,7 +53,9 @@ class NotificationService:
             # ═══════════════════════════════════════
             "priority": 10,  # Maksimal prioritet
             "android_visibility": 1,  # Public - lock screen da ko'rinadi
-            "android_accent_color": "FF4CAF50",  # Yashil rang
+            "android_accent_color": "FF00C853",  # Yashil rang
+            "small_icon": "ic_stat_onesignal_default",  # Notification icon
+            "large_icon": "ic_launcher",  # Katta icon
 
             # ═══════════════════════════════════════
             # iOS - Time Sensitive notification
@@ -67,10 +69,11 @@ class NotificationService:
             "ttl": 86400,  # 24 soat
         }
 
-        # Custom sound (android_channel_id siz)
+        # Custom sound
         if sound:
             payload["ios_sound"] = sound
             sound_name = sound.replace(".wav", "").replace(".mp3", "")
+            # Android uchun res/raw/ papkadagi sound fayl nomi
             payload["android_sound"] = sound_name
 
         if data:
