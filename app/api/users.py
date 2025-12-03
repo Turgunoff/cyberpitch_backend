@@ -305,18 +305,19 @@ def get_player_profile(
     # Oxirgi o'yinlar (5 ta)
     recent_matches = _get_recent_matches(db, UUID(user_id), limit=5)
 
-    # Pending challenge bormi (men bu userga challenge yuborganmanmi)
-    # Barcha mode'lar uchun tekshirish (friendly, ranked, challenge)
+    # Pending challenge bormi (men bu userga PENDING challenge yuborganmanmi)
+    # Faqat PENDING - chunki ACCEPTED bo'lsa is_busy bo'ladi
     pending_challenge = db.query(Match1v1).filter(
         Match1v1.player1_id == current_user.id,
         Match1v1.player2_id == UUID(user_id),
-        Match1v1.status.in_([GameStatus.PENDING, GameStatus.ACCEPTED])
+        Match1v1.status == GameStatus.PENDING
     ).first()
     has_pending_challenge = pending_challenge is not None
     pending_challenge_id = str(pending_challenge.id) if pending_challenge else None
 
     # O'yinchi band mi? (boshqa o'yin bilan band)
     # ACCEPTED yoki PLAYING statusdagi o'yini bor bo'lsa - band
+    # Bu holda yangi challenge yuborib bo'lmaydi
     is_busy = db.query(Match1v1).filter(
         or_(
             Match1v1.player1_id == UUID(user_id),

@@ -339,19 +339,33 @@ async def create_challenge(
             detail="Raqib topilmadi"
         )
 
-    # Active challenge mavjudligini tekshirish
-    existing = db.query(Match1v1).filter(
-        Match1v1.status.in_([GameStatus.PENDING, GameStatus.ACCEPTED, GameStatus.PLAYING]),
+    # Opponent ACCEPTED yoki PLAYING statusda o'yini bormi tekshirish
+    # Agar bor bo'lsa - bu o'yinchi band
+    opponent_busy = db.query(Match1v1).filter(
         or_(
-            and_(Match1v1.player1_id == current_user.id, Match1v1.player2_id == data.opponent_id),
-            and_(Match1v1.player1_id == data.opponent_id, Match1v1.player2_id == current_user.id)
-        )
+            Match1v1.player1_id == data.opponent_id,
+            Match1v1.player2_id == data.opponent_id
+        ),
+        Match1v1.status.in_([GameStatus.ACCEPTED, GameStatus.PLAYING])
     ).first()
 
-    if existing:
+    if opponent_busy:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Bu raqib bilan allaqachon aktiv o'yin mavjud"
+            detail="Bu o'yinchi hozir boshqa o'yinda band"
+        )
+
+    # Men bu userga allaqachon PENDING challenge yuborganmanmi
+    existing_pending = db.query(Match1v1).filter(
+        Match1v1.player1_id == current_user.id,
+        Match1v1.player2_id == data.opponent_id,
+        Match1v1.status == GameStatus.PENDING
+    ).first()
+
+    if existing_pending:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bu raqibga allaqachon taklif yuborgan ekansiz"
         )
 
     # Bet amount tekshirish (challenge mode)
