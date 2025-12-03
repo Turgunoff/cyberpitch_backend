@@ -540,14 +540,20 @@ async def send_friend_request(
 
     # Push Notification yuborish (background da)
     target_profile = db.query(Profile).filter(Profile.user_id == UUID(user_id)).first()
+    logger.info(f"🔔 Target profile: {target_profile}")
+    logger.info(f"🔔 OneSignal Player ID: {target_profile.onesignal_player_id if target_profile else 'No profile'}")
+
     if target_profile and target_profile.onesignal_player_id:
         requester_name = current_user.profile.nickname if current_user.profile else "O'yinchi"
+        logger.info(f"🔔 Sending notification to: {target_profile.onesignal_player_id[:20]}...")
         background_tasks.add_task(
             NotificationService.send_friend_request_notification,
             target_profile.onesignal_player_id,
             requester_name,
             str(current_user.id)
         )
+    else:
+        logger.warning(f"🔔 No OneSignal Player ID for user {user_id}")
 
     return {"message": "Do'stlik so'rovi yuborildi", "status": "pending"}
 
