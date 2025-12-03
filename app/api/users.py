@@ -14,7 +14,10 @@ logger = logging.getLogger(__name__)
 from app.core.security import get_current_user
 from app.models.users import User, Profile, Friendship
 from app.models.matches import Match1v1, GameStatus
-from app.services.notification_service import NotificationService
+from app.services.notification_service import (
+    send_friend_request_notification_sync,
+    send_friend_accepted_notification_sync,
+)
 
 router = APIRouter()
 
@@ -65,7 +68,7 @@ def get_my_profile(
     
     # last_online yangilash
     if profile:
-        profile.last_online = datetime.utcnow()
+        profile.last_online = datetime.now(timezone.utc)
         db.commit()
     
     return {
@@ -139,16 +142,17 @@ def verify_phone(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Telefon raqamni tasdiqlash (hozircha 123456 kod)"""
+    """Telefon raqamni tasdiqlash"""
     profile = current_user.profile
-    
+
     if not profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Profil topilmadi"
         )
-    
-    # Hozircha hardcoded kod
+
+    # TODO: Production'da SMS OTP xizmati (Eskiz/PlayMobile) bilan almashtirish
+    # Hozircha test uchun hardcoded kod
     if data.code != "123456":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -550,7 +554,7 @@ async def send_friend_request(
         requester_name = current_user.profile.nickname if current_user.profile else "O'yinchi"
         logger.info(f"🔔 Sending notification to: {target_profile.onesignal_player_id[:20]}...")
         background_tasks.add_task(
-            NotificationService.send_friend_request_notification,
+            send_friend_request_notification_sync,
             target_profile.onesignal_player_id,
             requester_name,
             str(current_user.id)
@@ -589,7 +593,7 @@ async def accept_friend_request(
     if requester_profile and requester_profile.onesignal_player_id:
         friend_name = current_user.profile.nickname if current_user.profile else "O'yinchi"
         background_tasks.add_task(
-            NotificationService.send_friend_accepted_notification,
+            send_friend_accepted_notification_sync,
             requester_profile.onesignal_player_id,
             friend_name,
             str(current_user.id)

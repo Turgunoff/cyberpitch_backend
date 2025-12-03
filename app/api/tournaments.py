@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.security import get_current_user, get_current_user_optional
@@ -316,7 +316,7 @@ def join_tournament(
         )
     
     # Vaqt tekshirish
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if tournament.registration_end and now > tournament.registration_end:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -538,7 +538,7 @@ def submit_match_result(
         # Player1 o'z scoreni my_score ga, opponent scoreni opponent_score ga yozadi
         # Shuning uchun tekshirish murakkab - hozircha oddiy qilamiz
         match.status = MatchStatus.COMPLETED
-        match.completed_at = datetime.utcnow()
+        match.completed_at = datetime.now(timezone.utc)
         
         # Winner aniqlash
         if match.player1_score > match.player2_score:

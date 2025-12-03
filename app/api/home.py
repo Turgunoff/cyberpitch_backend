@@ -7,7 +7,7 @@ Dashboard ma'lumotlari, online users, featured tournaments
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.core.database import get_db
@@ -35,14 +35,14 @@ def get_home_dashboard(
     profile = current_user.profile
 
     # Online users (oxirgi 5 daqiqada aktiv)
-    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+    five_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
     online_count = db.query(func.count(Profile.id)).filter(
         Profile.last_online >= five_minutes_ago
     ).scalar() or 0
 
     # Agar kam bo'lsa, minimum ko'rsatish
     if online_count < 100:
-        online_count = 100 + (datetime.utcnow().minute * 3)  # Dynamic fake count
+        online_count = 100 + (datetime.now(timezone.utc).minute * 3)  # Dynamic fake count
 
     # User statistikasi
     user_stats = {

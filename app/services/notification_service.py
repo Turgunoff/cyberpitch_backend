@@ -314,3 +314,23 @@ def send_friend_request_notification_sync(
             player_id, requester_name, requester_id
         )
     )
+
+
+def send_friend_accepted_notification_sync(
+    player_id: str,
+    friend_name: str,
+    friend_id: str,
+) -> bool:
+    """Do'stlik qabul qilindi notification (sinxron)"""
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    return loop.run_until_complete(
+        NotificationService.send_friend_accepted_notification(
+            player_id, friend_name, friend_id
+        )
+    )

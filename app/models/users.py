@@ -1,5 +1,6 @@
 # app/models/users.py
 import uuid
+from typing import Optional
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey, Date
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -113,7 +114,7 @@ class Profile(Base):
         return round((self.wins / self.total_matches) * 100, 2)
     
     @property
-    def age(self) -> int | None:
+    def age(self) -> Optional[int]:
         """Yoshni hisoblash"""
         if not self.birth_date:
             return None

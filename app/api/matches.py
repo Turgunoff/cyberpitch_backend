@@ -17,7 +17,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.users import User, Profile
 from app.models.matches import Match1v1, GameMode, GameStatus
-from app.services.notification_service import NotificationService
+from app.services.notification_service import send_challenge_notification_sync
 
 # In-memory matchmaking queue (production'da Redis ishlatiladi)
 matchmaking_queue: Dict[str, dict] = {}  # user_id -> {user_data, joined_at, mode}
@@ -292,7 +292,7 @@ def get_user_stats(
     )
 
     # Monthly stats (oxirgi 30 kun)
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
     monthly_matches = [m for m in matches if m.completed_at and m.completed_at >= thirty_days_ago]
     monthly_wins = sum(1 for m in monthly_matches if get_match_result_for_user(m, current_user.id) == "WIN")
 
@@ -381,7 +381,7 @@ async def create_challenge(
     if opponent_profile and opponent_profile.onesignal_player_id:
         challenger_name = current_user.profile.nickname if current_user.profile else "O'yinchi"
         background_tasks.add_task(
-            NotificationService.send_challenge_notification,
+            send_challenge_notification_sync,
             opponent_profile.onesignal_player_id,
             challenger_name,
             str(match.id),
@@ -441,7 +441,7 @@ def accept_challenge(
         profile.coins -= match.bet_amount
 
     match.status = GameStatus.ACCEPTED
-    match.accepted_at = datetime.utcnow()
+    match.accepted_at = datetime.now(timezone.utc)
 
     db.commit()
 
@@ -571,7 +571,7 @@ def submit_result(
                         profile.losses += 1
 
             match.status = GameStatus.COMPLETED
-            match.completed_at = datetime.utcnow()
+            match.completed_at = datetime.now(timezone.utc)
         else:
             # Natijalar mos kelmasa - dispute
             match.status = GameStatus.DISPUTED
@@ -687,7 +687,7 @@ def join_matchmaking_queue(
         "wins": profile.wins if profile else 0,
         "total_matches": profile.total_matches if profile else 0,
         "mode": mode.value,
-        "joined_at": datetime.utcnow().isoformat()
+        "joined_at": datetime.now(timezone.utc).isoformat()
     }
 
     # Raqib qidirish
@@ -791,7 +791,7 @@ def get_online_players(
     Challenge yuborish uchun
     """
     # Oxirgi 5 daqiqada aktiv bo'lganlar
-    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+    five_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
 
     online_profiles = db.query(Profile).filter(
         Profile.last_online >= five_minutes_ago,
@@ -845,7 +845,7 @@ def update_online_status(
     """
     profile = current_user.profile
     if profile:
-        profile.last_online = datetime.utcnow()
+        profile.last_online = datetime.now(timezone.utc)
         db.commit()
 
     return {"status": "updated"}
