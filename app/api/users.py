@@ -173,22 +173,22 @@ def verify_phone(
     }
 
 
-@router.get("/{user_id}", summary="Boshqa user profili")
+@router.get("/profile/{user_id}", summary="Boshqa user profili")
 def get_user_profile(
     user_id: str,
     db: Session = Depends(get_db)
 ):
     """Boshqa foydalanuvchi profilini ko'rish"""
     user = db.query(User).filter(User.id == user_id).first()
-    
+
     if not user or not user.profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Foydalanuvchi topilmadi"
         )
-    
+
     profile = user.profile
-    
+
     # Agar profil yopiq bo'lsa
     if not profile.is_public:
         return {
@@ -198,7 +198,7 @@ def get_user_profile(
             "is_public": False,
             "message": "Bu profil yopiq"
         }
-    
+
     return _profile_to_dict(profile)
 
 
