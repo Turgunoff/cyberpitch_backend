@@ -306,10 +306,10 @@ def get_player_profile(
     recent_matches = _get_recent_matches(db, UUID(user_id), limit=5)
 
     # Pending challenge bormi (men bu userga challenge yuborganmanmi)
+    # Barcha mode'lar uchun tekshirish (friendly, ranked, challenge)
     pending_challenge = db.query(Match1v1).filter(
         Match1v1.player1_id == current_user.id,
         Match1v1.player2_id == UUID(user_id),
-        Match1v1.mode == GameMode.CHALLENGE,
         Match1v1.status.in_([GameStatus.PENDING, GameStatus.ACCEPTED])
     ).first()
     has_pending_challenge = pending_challenge is not None
