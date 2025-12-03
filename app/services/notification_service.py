@@ -76,6 +76,12 @@ class NotificationService:
             # Android uchun res/raw/ papkadagi sound fayl nomi
             payload["android_sound"] = sound_name
 
+            # Android notification channel (app da yaratilgan)
+            if sound_name == "challenge":
+                payload["existing_android_channel_id"] = "challenge_channel"
+            elif sound_name == "friend_request":
+                payload["existing_android_channel_id"] = "friend_request_channel"
+
         if data:
             payload["data"] = data
 
@@ -170,7 +176,7 @@ class NotificationService:
         }
 
         return await cls.send_to_player(
-            player_id, title, message, data, sound="challenge.wav"
+            player_id, title, message, data, sound="challenge.mp3"
         )
 
     @classmethod
@@ -191,7 +197,7 @@ class NotificationService:
         }
 
         return await cls.send_to_player(
-            player_id, title, message, data, sound="friend_request.wav"
+            player_id, title, message, data, sound="friend_request.mp3"
         )
 
     @classmethod
