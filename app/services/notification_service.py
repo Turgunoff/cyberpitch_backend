@@ -26,6 +26,7 @@ class NotificationService:
         title: str,
         message: str,
         data: Optional[Dict[str, Any]] = None,
+        sound: Optional[str] = None,
     ) -> bool:
         """
         Bitta o'yinchiga notification yuborish
@@ -35,6 +36,7 @@ class NotificationService:
             title: Notification sarlavhasi
             message: Notification matni
             data: Qo'shimcha ma'lumotlar (type, id, etc.)
+            sound: Custom sound file nomi (masalan: "challenge.wav")
         """
         if not settings.ONESIGNAL_REST_API_KEY:
             logger.warning("ONESIGNAL_REST_API_KEY sozlanmagan!")
@@ -45,7 +47,18 @@ class NotificationService:
             "include_player_ids": [player_id],
             "headings": {"en": title},
             "contents": {"en": message},
+            # iOS uchun muhim sozlamalar
+            "ios_interruption_level": "time_sensitive",
+            "priority": 10,  # Yuqori prioritet
         }
+
+        # Custom sound va Android channel
+        if sound:
+            payload["ios_sound"] = sound
+            sound_name = sound.replace(".wav", "").replace(".mp3", "")
+            payload["android_sound"] = sound_name
+            # Android notification channel
+            payload["android_channel_id"] = f"{sound_name}_channel"
 
         if data:
             payload["data"] = data
@@ -131,7 +144,9 @@ class NotificationService:
             "challenger_name": challenger_name,
         }
 
-        return await cls.send_to_player(player_id, title, message, data)
+        return await cls.send_to_player(
+            player_id, title, message, data, sound="challenge.wav"
+        )
 
     @classmethod
     async def send_friend_request_notification(
@@ -150,7 +165,9 @@ class NotificationService:
             "requester_name": requester_name,
         }
 
-        return await cls.send_to_player(player_id, title, message, data)
+        return await cls.send_to_player(
+            player_id, title, message, data, sound="friend_request.wav"
+        )
 
     @classmethod
     async def send_friend_accepted_notification(
